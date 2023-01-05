@@ -1,0 +1,8 @@
+obj/
+bin/
+Migrations/
+.vscode/
+*-shm
+*-wal
+*.log
+wwwroot/
