@@ -29,7 +29,7 @@ public class TokenDangXuatService : ITokenDangXuatService
 	{
 		_serviceProvider = serviceProvider;
 		using IServiceScope scope = _serviceProvider.CreateScope();
-		XacThucDbContext dbContext = scope.ServiceProvider.GetRequiredService<XacThucDbContext>();
+		IXacThucDbContext dbContext = scope.ServiceProvider.GetRequiredService<IXacThucDbContext>();
 		_danhSachBoNhoTrong = new ConcurrentStack<TokenDangXuat>();
 		_danhSachTokenTrongDatabase = new ConcurrentStack<TokenDangXuat>(dbContext.TokenDangXuat.AsNoTracking());
 		_logger = logger;
@@ -38,7 +38,7 @@ public class TokenDangXuatService : ITokenDangXuatService
 	{
 		_logger.LogInformation("Lưu token từ ram vào database");
 		using IServiceScope scope = _serviceProvider.CreateScope();
-		XacThucDbContext dbContext = scope.ServiceProvider.GetRequiredService<XacThucDbContext>();
+		IXacThucDbContext dbContext = scope.ServiceProvider.GetRequiredService<IXacThucDbContext>();
 		lock (_danhSachBoNhoTrongLock)
 		{
 			dbContext.AddRange(_danhSachBoNhoTrong);
