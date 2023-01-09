@@ -2,9 +2,12 @@
 using System.Reflection;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RezUtility.Contexts;
 
 namespace RezUtility.Tasks;
 
@@ -29,19 +32,15 @@ public class CheckTask
 
 	public Task ExecuteAsync(CancellationToken cancellationToken = default)
 	{
+		using IServiceScope scope = _serviceProvider.CreateScope();
 		_logger.LogInformation("Bắt đầu kiểm tra...");
-
-		Task<bool>[] tasks = KiemTraToanBoDbContext(cancellationToken);
-
+		Task<bool>[] tasks = KiemTraToanBoDbContext(scope, cancellationToken);
 		bool needShutDown = false;
-
 		if (tasks.Any())
 		{
 			Task.WhenAll(tasks).Wait(cancellationToken);
 			needShutDown = tasks.All(x => x.Result);
 		}
-
-
 		if (!needShutDown)
 			return Task.CompletedTask;
 		_logger.LogError("Đóng chương trình....");
@@ -54,15 +53,14 @@ public class CheckTask
 	/// <param name="cancellationToken"></param>
 	/// <returns></returns>
 	/// <exception cref="InvalidOperationException"></exception>
-	private Task<bool>[] KiemTraToanBoDbContext(CancellationToken cancellationToken)
+	private Task<bool>[] KiemTraToanBoDbContext(IServiceScope scope, CancellationToken cancellationToken = default)
 	{
-		using IServiceScope scope = _serviceProvider.CreateScope();
 		object? rootProvider = LayGiaTriProperty(scope, "RootProvider");
 		object? callSiteValidator = LayGiaTriField(rootProvider, "_callSiteValidator");
 		IDictionary? data = LayGiaTriField(callSiteValidator, "_scopedServices") as IDictionary;
 		ICollection<Type>? types = data?.Keys as ICollection<Type>;
 		List<Type> tasks = (types ?? throw new InvalidOperationException())
-						   .Where(x => x.BaseType is not null && (typeof(DbContext) == x.BaseType || typeof(IdentityDbContext) == x.BaseType))
+						   .Where(x => x.BaseType is not null && (typeof(DbContext) == x.BaseType || typeof(IdentityDbContext) == x.BaseType) || x.GetInterfaces().Contains(typeof(IXacThucDbContext)))
 						   .ToList();
 		Task<bool>[] job = tasks.Select(x => KiemTraDatabase((DbContext)scope.ServiceProvider.GetRequiredService(x), cancellationToken)).ToArray();
 		return job;
@@ -84,7 +82,29 @@ public class CheckTask
 		bool needShutDown = false;
 
 		if (await context.Database.CanConnectAsync(cancellationToken))
+		{
 			_logger.LogInformation("Kết nối ổn ✔");
+			_logger.LogInformation("Kiểm tra sự tồn tại của database");
+			if (
+				!(context.Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator)!.Exists()
+			)
+			{
+				_logger.LogError("Database không tồn tại ❌");
+				_logger.LogError("Bắt đầu khởi tạo database");
+
+				try
+				{
+					await context.Database.EnsureCreatedAsync(cancellationToken);
+				}
+				catch (Exception)
+				{
+					_logger.LogError("Tạo database thất bại ❌");
+					needShutDown = true;
+				}
+
+				_logger.LogInformation("Tạo database thành công ✔");
+			}
+		}
 		else
 		{
 			_logger.LogError("Không thể kết nối ❌{NewLine}Bắt đầu khởi tạo database...", Environment.NewLine);
@@ -93,9 +113,10 @@ public class CheckTask
 				await context.Database.EnsureCreatedAsync(cancellationToken);
 				_logger.LogInformation("Tạo database thành công ✔");
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
 				_logger.LogError("Tạo database thất bại ❌");
+				_logger.LogError(e.Message);
 				needShutDown = true;
 			}
 		}

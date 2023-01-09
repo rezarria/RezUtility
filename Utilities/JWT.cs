@@ -16,7 +16,7 @@ public static class TokenUtility
 		if (themVao != null)
 			claims.AddRange(themVao);
 		SymmetricSecurityKey securityKey = new(Encoding.UTF8.GetBytes(key));
-		SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256Signature);
+		SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 		JwtSecurityToken tokenDescriptor = new(issuer, issuer, claims, expires: DateTime.Now.AddMinutes(expiryDurationMinutes), signingCredentials: credentials);
 		return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
 	}
