@@ -12,6 +12,6 @@ public class UserClaim
 	public string Type { get; set; } = string.Empty;
 	[Required(AllowEmptyStrings = false)]
 	public string Value { get; set; } = string.Empty;
-	[ForeignKey(nameof(UserClaim.Id))]
+	[ForeignKey(nameof(Id))]
 	public User? User { get; set; }
 }

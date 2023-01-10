@@ -20,13 +20,21 @@ public class XacThucDbContext : DbContext, IXacThucDbContext
 
 	public DbSet<TokenDangXuat> TokenDangXuat { get; set; } = null!;
 	public new EntityEntry Entry<TEntity>(TEntity entity) where TEntity : class
-		=> base.Entry(entity);
+	{
+		return base.Entry(entity);
+	}
 	public new EntityEntry Add<TEntity>(TEntity entity) where TEntity : class
-		=> base.Add(entity);
+	{
+		return base.Add(entity);
+	}
 	public new EntityEntry Attach<TEntity>(TEntity entity) where TEntity : class
-		=> base.Attach(entity);
+	{
+		return base.Attach(entity);
+	}
 	public new EntityEntry Remove<TEntity>(TEntity entity) where TEntity : class
-		=> base.Remove(entity);
+	{
+		return base.Remove(entity);
+	}
 
 	protected override void OnModelCreating(ModelBuilder builder)
 	{
